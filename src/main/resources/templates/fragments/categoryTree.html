@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<!--
+  계층형 카테고리를 재귀적으로 렌더링하는 프래그먼트.
+  level: 깊이(1=대분류, 2=중분류, 3=소분류) → CSS에서 위계 표현에 사용.
+  사용: <div th:replace="~{fragments/categoryTree :: tree(${categoryTree}, 1)}"></div>
+-->
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<th:block th:fragment="tree(nodes, level)">
+    <ul class="cat-tree" th:classappend="'depth-' + ${level}">
+        <li th:each="c : ${nodes}">
+            <a th:href="@{'/category/' + ${c.key}}" class="cat-row" th:classappend="'lvl-' + ${level}">
+                <span class="cat-name" th:text="${c.name}">카테고리</span>
+                <span class="count" th:if="${c.postCount > 0}" th:text="${c.postCount}">0</span>
+            </a>
+            <!-- 하위 카테고리가 있으면 level+1 로 재귀 호출 -->
+            <th:block th:if="${c.hasChildren}"
+                      th:replace="~{fragments/categoryTree :: tree(${c.children}, ${level + 1})}"></th:block>
+        </li>
+    </ul>
+</th:block>
+
+</body>
+</html>

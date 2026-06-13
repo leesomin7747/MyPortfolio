@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="ko"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/base}">
+<head>
+    <title>PROJECTS</title>
+</head>
+<body>
+<div layout:fragment="content">
+
+    <h1 class="page-title">PROJECTS</h1>
+    <p class="muted">
+        <a th:href="'https://github.com/' + ${githubUsername}" target="_blank" rel="noopener"
+           th:text="'@' + ${githubUsername}">@username</a>
+        의 깃허브 공개 저장소 (자동 연동)
+    </p>
+
+    <div class="repo-grid">
+        <a class="repo-card" th:each="repo : ${repos}"
+           th:href="${repo.htmlUrl}" target="_blank" rel="noopener">
+            <h3 th:text="${repo.name}">repo-name</h3>
+            <p class="repo-desc" th:text="${repo.description != null ? repo.description : '설명 없음'}">설명</p>
+            <div class="repo-meta">
+                <span th:if="${repo.language != null}" class="lang" th:text="${repo.language}">Java</span>
+                <span>★ <span th:text="${repo.stars}">0</span></span>
+                <span>⑂ <span th:text="${repo.forks}">0</span></span>
+            </div>
+        </a>
+        <p th:if="${repos.isEmpty()}" class="muted">
+            저장소를 불러오지 못했습니다. application.properties의 github.username을 확인하세요.
+        </p>
+    </div>
+
+</div>
+</body>
+</html>

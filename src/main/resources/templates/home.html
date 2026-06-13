@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="ko"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/base}">
+<head>
+    <title>HOME</title>
+</head>
+<body>
+<div layout:fragment="content">
+
+    <!-- 필터(태그/검색) 안내 라벨 -->
+    <h1 class="page-title" th:if="${filterLabel != null}" th:text="${filterLabel}">필터</h1>
+    <h1 class="page-title" th:unless="${filterLabel != null}">최근 글</h1>
+
+    <!-- 글 목록 (공통 프래그먼트 사용) -->
+    <div th:replace="~{fragments/postList :: list(${posts})}"></div>
+
+</div>
+</body>
+</html>

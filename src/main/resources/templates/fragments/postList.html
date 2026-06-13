@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<!--
+  글 목록을 렌더링하는 재사용 프래그먼트.
+  사용: <div th:replace="~{fragments/postList :: list(${posts})}"></div>
+  (cats, 즉 CategoryService 가 model 에 있어야 카테고리 이름이 표시됨)
+-->
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<ul class="post-list" th:fragment="list(posts)">
+    <li class="post-item" th:each="post : ${posts}">
+        <a class="post-link" th:href="@{'/post/' + ${post.slug}}">
+            <h2 th:text="${post.title}">글 제목</h2>
+        </a>
+        <div class="post-meta">
+            <span th:text="${#temporals.format(post.date, 'yyyy-MM-dd')}">2026-06-01</span>
+            ·
+            <a th:href="@{'/category/' + ${post.category}}"
+               th:text="${cats.nameOf(post.category)}">카테고리</a>
+        </div>
+        <p class="post-summary" th:text="${post.summary}">요약문</p>
+        <div class="tag-cloud">
+            <a th:each="t : ${post.tags}" th:href="@{'/tag/' + ${t}}" class="tag" th:text="'#' + ${t}">#tag</a>
+        </div>
+    </li>
+    <li th:if="${posts.isEmpty()}" class="muted">표시할 글이 없습니다.</li>
+</ul>
+
+</body>
+</html>

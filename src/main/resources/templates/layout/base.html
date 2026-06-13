@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<!--
+  공통 레이아웃(데코레이터). 각 페이지는 맨 위에
+  <html layout:decorate="~{layout/base}"> 를 선언하고
+  <... layout:fragment="content"> 안에 본문만 채우면 된다.
+-->
+<html lang="ko"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title th:text="${pageTitle != null ? pageTitle + ' | ' + siteTitle : siteTitle}">My Portfolio</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+
+<!-- ===== 헤더 / 내비게이션 ===== -->
+<header class="site-header">
+    <div class="header-inner">
+        <a class="brand" th:href="@{/}" th:text="${siteTitle}">My Portfolio</a>
+
+        <nav class="nav">
+            <a th:href="@{/}">HOME</a>
+            <a th:href="@{/categories}">CATEGORIES</a>
+            <a th:href="@{/tags}">TAGS</a>
+            <a th:href="@{/projects}">PROJECTS</a>
+            <a th:href="@{/about}">ABOUT</a>
+        </nav>
+
+        <form class="search-form" th:action="@{/search}" method="get">
+            <input type="text" name="q" placeholder="Search…" aria-label="검색">
+            <button type="submit">🔍</button>
+        </form>
+    </div>
+</header>
+
+<!-- ===== 본문 + 사이드바 ===== -->
+<div class="container">
+    <main class="content">
+        <!-- 각 페이지의 layout:fragment="content" 가 여기에 들어옴 -->
+        <div layout:fragment="content">
+            <p>내용이 여기에 표시됩니다.</p>
+        </div>
+    </main>
+
+    <aside class="sidebar">
+        <!-- 작성자 카드 -->
+        <section class="card profile-card">
+            <h2 th:text="${authorName}">홍길동</h2>
+            <p class="muted">Welcome to my portfolio blog</p>
+            <div class="social">
+                <a th:href="'https://github.com/' + ${githubUsername}" target="_blank" rel="noopener">github</a>
+                <a href="mailto:your-email@example.com">mail</a>
+                <a href="#" target="_blank" rel="noopener">SNS</a>
+            </div>
+        </section>
+
+        <!-- 카테고리 (최상위 대분류만 간결하게. 전체 구조는 CATEGORIES 페이지) -->
+        <section class="card">
+            <h3>CATEGORIES</h3>
+            <ul class="side-list">
+                <li th:each="root : ${categoryTree}">
+                    <a th:href="@{'/category/' + ${root.key}}">
+                        <span th:text="${root.name}">목표</span>
+                        <span class="count" th:if="${root.postCount > 0}" th:text="${root.postCount}">3</span>
+                    </a>
+                </li>
+            </ul>
+            <a class="see-all" th:href="@{/categories}">전체 보기 →</a>
+        </section>
+
+        <!-- 태그 -->
+        <section class="card">
+            <h3>TAGS</h3>
+            <div class="tag-cloud">
+                <a th:each="entry : ${allTags}"
+                   th:href="@{'/tag/' + ${entry.key}}"
+                   class="tag"
+                   th:text="'#' + ${entry.key}">#java</a>
+                <span th:if="${allTags.isEmpty()}" class="muted">아직 태그가 없습니다</span>
+            </div>
+        </section>
+    </aside>
+</div>
+
+<!-- ===== 푸터 ===== -->
+<footer class="site-footer">
+    <p>© <span th:text="${authorName}">홍길동</span> · Powered by Spring Boot + Thymeleaf</p>
+</footer>
+
+<script th:src="@{/js/app.js}"></script>
+</body>
+</html>

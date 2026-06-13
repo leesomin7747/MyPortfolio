@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="ko"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/base}">
+<head>
+    <title>Category</title>
+</head>
+<body>
+<div layout:fragment="content">
+
+    <!-- 브레드크럼: Goals / Career Goals ... -->
+    <nav class="breadcrumb">
+        <a th:href="@{/categories}">CATEGORIES</a>
+        <span th:each="b : ${breadcrumb}">
+            / <a th:href="@{'/category/' + ${b.key}}" th:text="${b.name}">노드</a>
+        </span>
+    </nav>
+
+    <h1 class="page-title" th:text="${category.name}">카테고리</h1>
+
+    <!-- 카테고리 소개글 (HTML) -->
+    <div class="post-content" th:if="${category.hasDescription}" th:utext="${category.description}">소개</div>
+
+    <!-- 하위 카테고리 카드 -->
+    <div class="sub-cat-grid" th:if="${category.hasChildren}">
+        <a class="sub-cat-card" th:each="child : ${category.children}"
+           th:href="@{'/category/' + ${child.key}}">
+            <span class="sub-cat-name" th:text="${child.name}">하위</span>
+            <span class="count" th:if="${child.postCount > 0}" th:text="${child.postCount}">0</span>
+        </a>
+    </div>
+
+    <!-- 이 카테고리(및 하위)의 글 -->
+    <h2 class="section-title" th:if="${!posts.isEmpty()}">Posts</h2>
+    <div th:if="${!posts.isEmpty()}" th:replace="~{fragments/postList :: list(${posts})}"></div>
+
+</div>
+</body>
+</html>

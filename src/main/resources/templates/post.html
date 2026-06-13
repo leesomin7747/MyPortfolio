@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="ko"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/base}">
+<head>
+    <title>글</title>
+</head>
+<body>
+<div layout:fragment="content">
+
+    <article class="post-detail">
+        <h1 th:text="${post.title}">글 제목</h1>
+        <div class="post-meta">
+            <span th:text="${#temporals.format(post.date, 'yyyy-MM-dd')}">2026-06-01</span>
+            ·
+            <a th:href="@{'/category/' + ${post.category}}" th:text="${categoryName}">카테고리</a>
+        </div>
+        <div class="tag-cloud">
+            <a th:each="t : ${post.tags}" th:href="@{'/tag/' + ${t}}" class="tag" th:text="'#' + ${t}">#tag</a>
+        </div>
+
+        <!-- 마크다운에서 변환된 HTML 본문 (th:utext = 이스케이프 안 함) -->
+        <div class="post-content" th:utext="${post.contentHtml}">본문</div>
+    </article>
+
+    <p><a th:href="@{/}">← 목록으로</a></p>
+
+</div>
+</body>
+</html>

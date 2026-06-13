@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="ko"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/base}">
+<head>
+    <title>ABOUT</title>
+</head>
+<body>
+<div layout:fragment="content">
+
+    <h1 class="page-title">ABOUT</h1>
+    <article class="post-content">
+        <h2 th:text="${authorName}">홍길동</h2>
+        <p>
+            안녕하세요! 저는 <span th:text="${authorName}">홍길동</span>입니다.
+            이 페이지는 자기소개를 작성하는 공간입니다. about.html을 수정해 채워보세요.
+        </p>
+        <hr>
+        <h3>Skills</h3>
+        <ul>
+            <h4>Developement</h4>
+            <ul>
+                <li>Java / Spring Boot</li>
+                <li>JavaScript / HTML / CSS / TypeScript / Supabase</li>
+                <li>C / Python / DjangGo</li>
+                <li>DataBase / MySQL</li>
+                <li>...</li>
+            </ul>
+        </ul>
+        <ul>
+            <h4>Security</h4>
+            <ul>
+                <li>Web-Hacking</li>
+                <li>Reversing</li>
+                <li>AI Security</li>
+            </ul>
+        </ul>
+        <hr>
+        <h3>Contact</h3>
+        <ul>
+            <li>GitHub:
+                <a th:href="'https://github.com/' + ${githubUsername}" target="_blank" rel="noopener"
+                   th:text="'@' + ${githubUsername}">@username</a>
+            </li>
+            <li>Email: leesomin7747@naver.com</li>
+        </ul>
+    </article>
+
+</div>
+</body>
+</html>

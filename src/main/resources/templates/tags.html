@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="ko"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/base}">
+<head>
+    <title>TAGS</title>
+</head>
+<body>
+<div layout:fragment="content">
+
+    <h1 class="page-title">TAGS</h1>
+    <div class="tag-cloud big">
+        <a th:each="entry : ${allTags}"
+           th:href="@{'/tag/' + ${entry.key}}"
+           class="tag"
+           th:text="'#' + ${entry.key} + ' (' + ${entry.value} + ')'">#java (3)</a>
+        <span th:if="${allTags.isEmpty()}" class="muted">태그가 없습니다.</span>
+    </div>
+
+</div>
+</body>
+</html>
