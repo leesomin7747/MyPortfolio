@@ -11,6 +11,8 @@
         (function () {
             var t = localStorage.getItem('theme');
             if (t) document.documentElement.setAttribute('data-theme', t);
+            var h = localStorage.getItem('accentHue');   // 저장된 강조색(색조)
+            if (h) document.documentElement.style.setProperty('--primary', 'hsl(' + h + ', 70%, 45%)');
         })();
     </script>
     <link rel="stylesheet" th:href="@{/css/style.css}">
@@ -34,6 +36,19 @@
             <input type="text" name="q" placeholder="Search…" aria-label="검색">
             <button type="submit">🔍</button>
         </form>
+
+        <!-- 테마 색상(강조색) 지정 -->
+        <div class="color-picker-wrap">
+            <button type="button" id="color-toggle" class="theme-btn" aria-label="테마 색상">🎨</button>
+            <div id="color-panel" class="color-panel" hidden>
+                <div class="color-panel-head">
+                    <span class="cp-title">테마 색상</span>
+                    <button type="button" id="color-reset" class="cp-reset" title="기본값으로">↺</button>
+                    <span id="color-value" class="cp-value">212</span>
+                </div>
+                <input type="range" id="color-slider" class="hue-slider" min="0" max="360" value="212">
+            </div>
+        </div>
 
         <!-- 다크모드 토글 (클릭 시 라이트/다크 전환) -->
         <button type="button" id="theme-toggle" class="theme-btn" aria-label="다크모드 전환">🌙</button>
