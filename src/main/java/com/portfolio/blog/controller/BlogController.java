@@ -5,7 +5,9 @@ import com.portfolio.blog.model.Post;
 import com.portfolio.blog.service.CategoryService;
 import com.portfolio.blog.service.GitHubService;
 import com.portfolio.blog.service.PostService;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -93,9 +95,10 @@ public class BlogController {
     }
 
     @GetMapping("/post/{slug}")
-    public String post(@PathVariable String slug, Model model) {
+    public String post(@PathVariable String slug, Model model, HttpServletResponse response) {
         Post post = postService.findBySlug(slug);
         if (post == null) {
+            response.setStatus(HttpStatus.NOT_FOUND.value());
             model.addAttribute("pageTitle", "Not Found");
             return "error/404";
         }
@@ -112,9 +115,10 @@ public class BlogController {
     }
 
     @GetMapping("/category/{key}")
-    public String category(@PathVariable String key, Model model) {
+    public String category(@PathVariable String key, Model model, HttpServletResponse response) {
         Category category = categoryService.findByKey(key);
         if (category == null) {
+            response.setStatus(HttpStatus.NOT_FOUND.value());
             model.addAttribute("pageTitle", "Not Found");
             return "error/404";
         }
@@ -154,9 +158,10 @@ public class BlogController {
 
     /** 프로젝트 상세: README·언어비율·메타데이터·미리보기 이미지 */
     @GetMapping("/projects/{repo}")
-    public String projectDetail(@PathVariable String repo, Model model) {
+    public String projectDetail(@PathVariable String repo, Model model, HttpServletResponse response) {
         var detail = gitHubService.fetchRepoDetail(repo);
         if (detail == null) {
+            response.setStatus(HttpStatus.NOT_FOUND.value());
             model.addAttribute("pageTitle", "Not Found");
             return "error/404";
         }
