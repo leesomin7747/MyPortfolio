@@ -30,7 +30,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // 현재 테마에 맞는 아이콘(🌙/☀️) 표시
     function updateThemeIcon() {
         const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-        if (themeToggle) themeToggle.textContent = isDark ? '☀️' : '🌙';
+        const icon = themeToggle ? themeToggle.querySelector('.material-symbols-outlined') : null;
+        // 다크면 '해'(라이트로 전환), 라이트면 '달'(다크로 전환)
+        if (icon) icon.textContent = isDark ? 'light_mode' : 'dark_mode';
     }
     updateThemeIcon();
 
@@ -55,6 +57,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // 색조(h)를 --primary 변수에 적용 + 슬라이더/숫자 동기화
     function applyHue(h) {
         document.documentElement.style.setProperty('--primary', 'hsl(' + h + ', 70%, 45%)');
+        // 헤더·사이드바용 옅은 틴트(투명도 높임)
+        document.documentElement.style.setProperty('--accent-tint', 'hsla(' + h + ', 70%, 50%, 0.12)');
         if (colorSlider) colorSlider.value = h;
         if (colorValue) colorValue.textContent = h;
     }
@@ -81,7 +85,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (colorReset) {
         colorReset.addEventListener('click', () => {
             localStorage.removeItem('accentHue');
-            document.documentElement.style.removeProperty('--primary'); // 스타일시트 기본값으로
+            document.documentElement.style.removeProperty('--primary');     // 스타일시트 기본값으로
+            document.documentElement.style.removeProperty('--accent-tint'); // 틴트 제거
             colorSlider.value = DEFAULT_HUE;
             colorValue.textContent = DEFAULT_HUE;
         });

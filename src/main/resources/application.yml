@@ -17,5 +17,18 @@ github:
   username: leesomin7747
   token: "${GITHUB_TOKEN:}"
 
+# ===== DB (H2 파일 모드: 껐다 켜도 데이터 유지) =====
+spring.datasource:
+  url: jdbc:h2:file:./data/blogdb      # data/blogdb.mv.db 파일에 저장
+  driver-class-name: org.h2.Driver
+  username: sa
+  password:
+spring.jpa:
+  hibernate:
+    ddl-auto: update                   # 엔티티 보고 테이블 자동 생성/갱신
+  open-in-view: false
+spring.h2.console:
+  enabled: true                        # http://localhost:8080/h2-console 에서 데이터 눈으로 확인
+
 server:
   port: 8080

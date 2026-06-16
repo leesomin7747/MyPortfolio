@@ -13,6 +13,7 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.LinkedHashMap;
@@ -168,6 +169,25 @@ public class BlogController {
         model.addAttribute("repo", detail);
         model.addAttribute("pageTitle", detail.name());
         return "project-detail";
+    }
+
+    /** 글쓰기 폼 */
+    @GetMapping("/write")
+    public String writeForm(Model model) {
+        // 카테고리 선택 트리는 공통 모델의 categoryTree 를 사용
+        model.addAttribute("pageTitle", "글쓰기");
+        return "write";
+    }
+
+    /** 글쓰기 저장 → 작성된 글로 이동 */
+    @PostMapping("/write")
+    public String writeSubmit(@RequestParam String title,
+                             @RequestParam(required = false) String category,
+                             @RequestParam(required = false) String tags,
+                             @RequestParam(required = false) String summary,
+                             @RequestParam(required = false) String content) {
+        Post created = postService.createPost(title, category, tags, summary, content);
+        return "redirect:/post/" + created.slug();
     }
 
     @GetMapping("/search")

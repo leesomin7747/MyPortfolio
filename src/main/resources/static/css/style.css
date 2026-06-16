@@ -9,6 +9,7 @@
     --radius: 10px;
     --max-width: 1300px;
     --header-h: 56px;
+    --accent-tint: transparent;   /* 팔레트로 색 고르면 선택색의 옅은 버전이 들어감 */
 }
 
 /* ===== 다크 모드 (data-theme="dark" 일 때 색 변수만 교체) ===== */
@@ -56,7 +57,8 @@ a:hover { text-decoration: underline; }
 /* ===== 헤더 ===== */
 .site-header {
     border-bottom: 1px solid var(--border);
-    background: var(--bg);
+    /* 기본 배경 위에 선택색 틴트를 덧칠 (틴트 transparent면 그냥 배경색) */
+    background: linear-gradient(var(--accent-tint), var(--accent-tint)), var(--bg);
     position: sticky;
     top: 0;
     z-index: 10;
@@ -72,9 +74,12 @@ a:hover { text-decoration: underline; }
     gap: 20px;
 }
 .brand { font-weight: 700; font-size: 1.2rem; color: var(--text); white-space: nowrap; }
-.nav { display: flex; gap: 16px; flex: 1; }
+.nav { display: flex; gap: 16px; flex: 1; margin-left: 48px; }  /* 숫자 키우면 더 오른쪽 */
 .nav a { color: var(--text); font-weight: 600; font-size: 0.88rem; letter-spacing: 0.02em; }
 .nav a:hover { color: var(--primary); text-decoration: none; }
+/* nav 안 아이콘: 글자 높이에 맞춰 정렬·크기 */
+.nav a { display: inline-flex; align-items: center; }
+.nav .material-symbols-outlined { font-size: 22px; }
 
 .search-form { display: flex; margin-left: auto; }
 .search-form input {
@@ -104,6 +109,10 @@ a:hover { text-decoration: underline; }
     line-height: 1;
 }
 .theme-btn:hover { border-color: var(--primary); }
+.theme-btn { display: inline-flex; align-items: center; justify-content: center; }
+.theme-btn .material-symbols-outlined { font-size: 20px; }
+/* 다크모드일 때 헤더 토글 아이콘들(해·팔레트)은 흰색 */
+:root[data-theme="dark"] .theme-btn .material-symbols-outlined { color: #fff; }
 
 /* ===== 테마 색상 피커 ===== */
 .color-picker-wrap { position: relative; }
@@ -189,6 +198,11 @@ a:hover { text-decoration: underline; }
     border: 1px solid var(--border);
     border-radius: var(--radius);
     padding: 16px;
+}
+/* 좌우 사이드바 카드: 선택색 틴트를 카드 배경 위에 덧칠 */
+.sidebar-left .card,
+.sidebar-right .card {
+    background: linear-gradient(var(--accent-tint), var(--accent-tint)), var(--card-bg);
 }
 .card h3 {
     font-size: 0.78rem;
@@ -481,6 +495,43 @@ a:hover { text-decoration: underline; }
 /* README 박스 */
 .readme-card .readme-body { max-height: 640px; overflow-y: auto; }
 .readme-body img { max-width: 100%; height: auto; }
+
+/* ===== 글쓰기 폼 ===== */
+.write-form { display: flex; flex-direction: column; gap: 16px; max-width: 720px; }
+.write-form label { display: flex; flex-direction: column; gap: 6px; font-weight: 600; font-size: 0.9rem; }
+.write-form input,
+.write-form select,
+.write-form textarea {
+    font: inherit; font-weight: 400;
+    padding: 10px 12px;
+    border: 1px solid var(--border); border-radius: 8px;
+    background: var(--bg); color: var(--text);
+}
+.write-form textarea { resize: vertical; min-height: 200px; font-family: "SF Mono", Menlo, Consolas, monospace; }
+.write-form input:focus,
+.write-form select:focus,
+.write-form textarea:focus { outline: none; border-color: var(--primary); }
+.write-actions { display: flex; gap: 10px; }
+
+/* 글쓰기 - 카테고리 선택 트리 */
+.cat-field { display: flex; flex-direction: column; gap: 6px; font-weight: 600; font-size: 0.9rem; }
+.cat-field-label small { font-weight: 400; }
+.cat-select {
+    max-height: 280px; overflow-y: auto;
+    border: 1px solid var(--border); border-radius: 8px;
+    padding: 8px 12px; background: var(--bg);
+}
+.cat-select-tree { list-style: none; padding-left: 0; margin: 0; font-weight: 400; }
+/* 하위 들여쓰기 + 가이드선 */
+.cat-select-tree .cat-select-tree {
+    margin: 2px 0 2px 9px; padding-left: 14px; border-left: 2px solid var(--border);
+}
+/* 말단(라디오) 행 */
+.cat-radio { cursor: pointer; }
+/* .write-form label(세로배치)을 덮어 가로 배치: 라디오 왼쪽 · 텍스트 오른쪽 · 좌측 정렬 */
+.cat-select .cat-radio { flex-direction: row; justify-content: flex-start; align-items: center; }
+.cat-radio input { margin: 0 2px 0 0; }
+.cat-radio input:checked + .cat-name { color: var(--primary); font-weight: 700; }
 
 /* ===== 페이지네이션 ===== */
 .pagination {

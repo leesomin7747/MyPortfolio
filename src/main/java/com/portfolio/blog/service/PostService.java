@@ -1,6 +1,8 @@
 package com.portfolio.blog.service;
 
 import com.portfolio.blog.model.Post;
+import com.portfolio.blog.model.PostEntity;
+import com.portfolio.blog.repository.PostRepository;
 import jakarta.annotation.PostConstruct;
 import org.commonmark.parser.Parser;
 import org.commonmark.renderer.html.HtmlRenderer;
@@ -34,8 +36,15 @@ public class PostService {
     private final Parser markdownParser = Parser.builder().build();
     private final HtmlRenderer htmlRenderer = HtmlRenderer.builder().build();
 
-    // 앱 시작 시 한 번 로딩해 캐싱 (slug -> Post)
+    // 앱 시작 시 한 번 로딩해 캐싱 (slug -> Post) — 기존 .md 글
     private final Map<String, Post> postsBySlug = new LinkedHashMap<>();
+
+    // 웹에서 작성한 글이 저장되는 DB
+    private final PostRepository postRepository;
+
+    public PostService(PostRepository postRepository) {
+        this.postRepository = postRepository;
+    }
 
     @PostConstruct
     public void loadPosts() {
@@ -132,45 +141,58 @@ public class PostService {
                 .collect(Collectors.toList());
     }
 
-    // ---------- 조회 메서드들 ----------
+    // ---------- 조회 (기존 .md + DB 글 합쳐서) ----------
+
+    /** 엔티티(DB) → Post(뷰모델) 변환: 마크다운을 HTML로 */
+    private Post toPost(PostEntity e) {
+        String md = e.getContentMarkdown() == null ? "" : e.getContentMarkdown();
+        String html = htmlRenderer.render(markdownParser.parse(md));
+        return new Post(e.getSlug(), e.getTitle(), e.getDate(), e.getCategory(),
+                parseTags(e.getTags()), e.getSummary() == null ? "" : e.getSummary(), html);
+    }
 
     public List<Post> findAll() {
-        return new ArrayList<>(postsBySlug.values());
+        List<Post> combined = new ArrayList<>(postsBySlug.values());   // .md 글
+        for (PostEntity e : postRepository.findAll()) combined.add(toPost(e)); // DB 글
+        combined.sort(Comparator.comparing(Post::date).reversed());    // 최신순
+        return combined;
     }
 
     public Post findBySlug(String slug) {
-        return postsBySlug.get(slug);
+        Post md = postsBySlug.get(slug);
+        if (md != null) return md;                                     // .md 우선
+        return postRepository.findBySlug(slug).map(this::toPost).orElse(null); // 없으면 DB
     }
 
     public List<Post> findByCategory(String category) {
-        return postsBySlug.values().stream()
+        return findAll().stream()
                 .filter(p -> p.category().equalsIgnoreCase(category))
                 .collect(Collectors.toList());
     }
 
     /** 여러 카테고리 key 중 하나에 속하는 글 (계층형 카테고리: 자기+하위 전체) */
     public List<Post> findByCategoryKeys(Set<String> keys) {
-        return postsBySlug.values().stream()
+        return findAll().stream()
                 .filter(p -> keys.contains(p.category()))
                 .collect(Collectors.toList());
     }
 
     public List<Post> findByTag(String tag) {
-        return postsBySlug.values().stream()
+        return findAll().stream()
                 .filter(p -> p.tags().stream().anyMatch(t -> t.equalsIgnoreCase(tag)))
                 .collect(Collectors.toList());
     }
 
     /** 카테고리별 글 개수 (사이드바용) */
     public Map<String, Long> categoryCounts() {
-        return postsBySlug.values().stream()
+        return findAll().stream()
                 .collect(Collectors.groupingBy(Post::category, LinkedHashMap::new, Collectors.counting()));
     }
 
     /** 전체 태그 개수 (태그 클라우드용) */
     public Map<String, Long> tagCounts() {
         Map<String, Long> result = new LinkedHashMap<>();
-        for (Post p : postsBySlug.values()) {
+        for (Post p : findAll()) {
             for (String tag : p.tags()) {
                 result.merge(tag, 1L, Long::sum);
             }
@@ -182,11 +204,43 @@ public class PostService {
     public List<Post> search(String keyword) {
         if (keyword == null || keyword.isBlank()) return findAll();
         String k = keyword.toLowerCase();
-        return postsBySlug.values().stream()
+        return findAll().stream()
                 .filter(p -> p.title().toLowerCase().contains(k)
                         || p.summary().toLowerCase().contains(k)
                         || p.category().toLowerCase().contains(k)
                         || p.tags().stream().anyMatch(t -> t.toLowerCase().contains(k)))
                 .collect(Collectors.toList());
+    }
+
+    // ---------- 글쓰기 (DB 저장) ----------
+
+    /** 새 글을 DB에 저장하고 생성된 Post 반환 */
+    public Post createPost(String title, String category, String tagsCsv,
+                           String summary, String markdown) {
+        String slug = generateSlug(title);
+        PostEntity e = new PostEntity(
+                slug,
+                (title == null || title.isBlank()) ? slug : title.trim(),
+                LocalDate.now(),
+                (category == null || category.isBlank()) ? "uncategorized" : category,
+                tagsCsv == null ? "" : tagsCsv.trim(),
+                summary == null ? "" : summary.trim(),
+                markdown == null ? "" : markdown);
+        postRepository.save(e);
+        return toPost(e);
+    }
+
+    /** 제목 기반 slug 생성 (중복이면 -2, -3 …) */
+    private String generateSlug(String title) {
+        String base = (title == null) ? "" : title.trim().toLowerCase()
+                .replaceAll("[^a-z0-9가-힣]+", "-")
+                .replaceAll("(^-|-$)", "");
+        if (base.isBlank()) base = "post";
+        String slug = base;
+        int n = 1;
+        while (postsBySlug.containsKey(slug) || postRepository.existsBySlug(slug)) {
+            slug = base + "-" + (++n);
+        }
+        return slug;
     }
 }

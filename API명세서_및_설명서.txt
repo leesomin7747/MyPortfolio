@@ -1,0 +1,512 @@
+================================================================================
+ 개인 포트폴리오 블로그 — API 명세서 & 기술 설명서 (+ 예상 Q&A)
+================================================================================
+프로젝트명 : LEESOMIN 포트폴리오 블로그
+작성자     : 이소민 (InfoSec @ USW)
+제출 과목   : 웹프로그래밍 프로젝트 (2026)
+필수 조건   : 바닐라 JS + 스프링부트 + 타임리프 + GitHub 자동 연동
+--------------------------------------------------------------------------------
+이 문서는 "이 웹을 어떻게 만들었는가"를 (1) 전체 구조, (2) 기술 스택,
+(3) 화면(엔드포인트) API 명세, (4) 외부(GitHub) API 명세, (5) 핵심 동작 원리,
+(6) 예상 Q&A 순서로 설명한다. 발표/면접 때 이 문서만 읽어도 막힘없이
+설명할 수 있도록 작성했다.
+================================================================================
+
+
+================================================================================
+[0] 한 줄 요약
+================================================================================
+"Spring Boot(MVC) 서버가 마크다운 글 파일과 GitHub REST API에서 데이터를
+가져와 Thymeleaf로 HTML을 만들어(SSR) 응답하고, 사용자가 쓴 글은 H2 DB에
+저장하는, 바닐라 JS로 다크모드/검색/테마색을 입힌 서버 사이드 렌더링 블로그."
+
+
+================================================================================
+[1] 기술 스택 (build.gradle 기준)
+================================================================================
+- 언어/런타임 : Java 26 (toolchain), Spring Boot 3.5.14
+- 웹 프레임워크 : Spring MVC (spring-boot-starter-web)
+- 템플릿 엔진  : Thymeleaf (+ thymeleaf-layout-dialect 3.4.0 / 레이아웃 상속)
+- 마크다운    : CommonMark 0.24.0 (.md → HTML 변환)
+- 영속성      : Spring Data JPA + H2 Database (파일 모드, 임베디드)
+- HTTP 클라이언트 : Spring RestClient (Spring 6.1+, GitHub API 호출)
+- JSON 매핑   : Jackson (Spring 기본 내장, JSON ↔ Java 객체)
+- 프론트엔드  : 바닐라 JavaScript (app.js), 순수 CSS (style.css)
+- 빌드 도구   : Gradle (Gradle Wrapper)
+- 개발 편의   : Spring Boot DevTools (변경 자동 반영)
+
+[왜 이 조합인가]
+- 과제 필수 조건(바닐라JS + 스프링부트 + 타임리프)을 그대로 충족.
+- 글은 "파일(.md)"로, 사용자 작성 글은 "DB(H2)"로 → 하이브리드 저장.
+- GitHub 저장소는 코드에 직접 안 적고 REST API로 실시간 수집 → 자동 연동.
+
+
+================================================================================
+[2] 전체 아키텍처 (레이어 구조)
+================================================================================
+
+  [브라우저]
+     │  HTTP 요청 (GET/POST)
+     ▼
+  ┌──────────────────────── Spring Boot 서버 ────────────────────────┐
+  │                                                                  │
+  │  Controller 계층 :  BlogController                               │
+  │     - URL ↔ 메서드 매핑(@GetMapping/@PostMapping)               │
+  │     - Model에 데이터 담고 뷰 이름 반환                           │
+  │                                                                  │
+  │  Service 계층 :                                                  │
+  │     - PostService     : .md 파일 로딩 + DB 글 합쳐 조회/검색/작성 │
+  │     - CategoryService : 계층형 카테고리 트리 구성/조회           │
+  │     - GitHubService   : GitHub REST API 호출/가공               │
+  │                                                                  │
+  │  Repository 계층 :  PostRepository (Spring Data JPA)            │
+  │     - DB CRUD 자동 구현 (save/findBySlug/existsBySlug...)        │
+  │                                                                  │
+  │  Model(도메인/DTO) :                                            │
+  │     - Post(뷰모델), PostEntity(JPA 엔티티), Category,           │
+  │       GitHubRepo, GitHubRepoDetail, LanguageStat               │
+  │                                                                  │
+  │  View 계층 :  Thymeleaf 템플릿 (templates/*.html)              │
+  │     - layout/base.html 을 상속(layout:decorate)                │
+  └──────────────────────────────────────────────────────────────┘
+     │                              │
+     ▼ (HTML 응답)                  ▼ JPA
+  [브라우저]                    [H2 DB: data/blogdb.mv.db]
+                                    ▲
+                                    │ RestClient (HTTP)
+                              [GitHub REST API]
+
+[핵심 데이터 흐름 3가지]
+ (A) 기존 글 보기   : .md 파일 → PostService(메모리 캐시) → 화면
+ (B) 글쓰기/저장    : 글쓰기 폼 → PostService.createPost → H2 DB 저장
+ (C) GitHub 프로젝트 : GitHubService → GitHub API(JSON) → 객체 변환 → 화면
+
+
+================================================================================
+[3] 데이터 모델 (도메인 객체)
+================================================================================
+
+[Post] (record, 뷰모델 - 화면에 뿌리는 글 1편)
+  slug, title, date, category, tags(List), summary, contentHtml
+  - .md 파일과 DB 글 모두 최종적으로 이 Post 형태로 변환되어 화면에 노출.
+  - contentHtml은 마크다운을 CommonMark로 변환한 "이미 렌더된 HTML".
+
+[PostEntity] (JPA @Entity, DB 테이블 "post")
+  id(PK, 자동증가), slug(unique), title, date, category, tags(CSV),
+  summary, contentMarkdown(@Lob, 원문 마크다운)
+  - 웹 글쓰기로 작성된 글만 여기 저장. (.md 글과 분리된 하이브리드 구조)
+  - 저장은 마크다운 "원문", 보여줄 때 HTML로 변환.
+
+[Category] (계층형 트리 노드)
+  key, name, description, children(List), postCount
+  - 대분류 > 중분류 > 소분류 (예: 실전경험 > 보안 > CTF)
+  - 트리 구조는 CategoryService.buildTree()에 코드로 정의.
+  - postCount는 "자기 + 모든 하위" 글 수를 재귀로 합산.
+
+[GitHubRepo] (record, /projects 목록 카드용)
+  name, description, htmlUrl, language, stars, forks, updatedAt, fork
+
+[GitHubRepoDetail] (record, /projects/{repo} 상세용)
+  name, description, htmlUrl, homepage, mainLanguage,
+  stars, forks, watchers, openIssues, licenseName,
+  createdAt, pushedAt, topics(List), readmeHtml,
+  languages(List<LanguageStat>), ogImageUrl
+
+[LanguageStat] (record, 언어 비율 막대그래프용)
+  name, percent, color
+
+
+================================================================================
+[4] API 명세서 — 화면(웹) 엔드포인트
+================================================================================
+※ 이 앱은 REST(JSON) API가 아니라 "서버 사이드 렌더링(SSR)" 방식이라,
+  각 엔드포인트는 JSON이 아니라 완성된 HTML 페이지를 응답한다.
+  (예외: GitHub와의 통신만 외부 REST API 사용 → [5]장)
+
+--------------------------------------------------------------------------------
+번호 | 메서드 | 경로                | 설명                  | 응답(뷰)        | 상태코드
+--------------------------------------------------------------------------------
+ 1  | GET   | /                   | 홈(글 목록, 페이지네이션) | home.html      | 200
+ 2  | GET   | /post/{slug}        | 글 1편 상세            | post.html      | 200 / 404
+ 3  | GET   | /categories         | 카테고리 전체 트리      | categories.html| 200
+ 4  | GET   | /category/{key}     | 특정 카테고리 글 목록   | category.html  | 200 / 404
+ 5  | GET   | /tags               | 태그 전체 목록         | tags.html      | 200
+ 6  | GET   | /tag/{name}         | 특정 태그 글 목록      | home.html(재사용)| 200
+ 7  | GET   | /about              | 소개 페이지           | about.html     | 200
+ 8  | GET   | /projects           | GitHub 저장소 목록     | projects.html  | 200
+ 9  | GET   | /projects/{repo}    | 저장소 상세(README등)  | project-detail | 200 / 404
+10  | GET   | /write              | 글쓰기 폼             | write.html     | 200
+11  | POST  | /write              | 글 저장 → 상세로 리다이렉트| 302 redirect | 302
+12  | GET   | /search?q=...       | 키워드 검색 결과       | home.html(재사용)| 200
+--------------------------------------------------------------------------------
+
+[엔드포인트별 상세]
+
+[1] GET /
+  - 파라미터: page (선택, 기본 1) — 페이지 번호
+  - 동작: 전체 글을 최신순 정렬 후 한 페이지 10개(PAGE_SIZE)씩 잘라(subList) 전달.
+  - 페이지 번호 범위 보정(1보다 작거나 총 페이지 초과 시 보정).
+  - Model: posts, currentPage, totalPages, pageTitle
+
+[2] GET /post/{slug}
+  - 경로변수: slug (글 식별자)
+  - 동작: PostService.findBySlug(slug). 없으면 HTTP 404 + error/404.html.
+  - Model: post, categoryName(카테고리 key→이름 변환), pageTitle
+
+[4] GET /category/{key}
+  - 경로변수: key (카테고리 키)
+  - 동작: 해당 카테고리 + 모든 하위 카테고리에 속한 글을 모아서 보여줌
+          (subtreeKeys로 자기+하위 key 집합 → findByCategoryKeys).
+  - 없는 key면 404. breadcrumb(상위 경로)도 함께 전달.
+
+[6] GET /tag/{name}
+  - 동작: 해당 태그를 가진 글 목록. home.html을 재사용하며 filterLabel로
+          "#태그명" 표시.
+
+[8] GET /projects
+  - 동작: GitHubService.fetchRepos()로 GitHub 저장소 목록 받아 카드로 표시.
+
+[9] GET /projects/{repo}
+  - 동작: GitHubService.fetchRepoDetail(repo)로 메타데이터+README+언어비율
+          조립. 실패/없는 저장소면 404.
+
+[10][11] /write (GET 폼 / POST 저장)
+  - POST 파라미터: title(필수), category, tags, summary, content
+  - 동작: PostService.createPost()가 H2 DB에 PostEntity로 저장 후
+          생성된 글 상세(/post/{slug})로 리다이렉트(PRG 패턴).
+  - slug는 제목 기반 자동 생성, 중복 시 -2, -3 ... 붙임.
+
+[12] GET /search
+  - 파라미터: q (검색어)
+  - 동작: 제목/요약/카테고리/태그에 키워드가 포함된 글을 대소문자 무시로 필터.
+
+[공통 모델 (@ModelAttribute commonAttributes)]
+  모든 페이지에 자동 주입되는 데이터:
+  - siteTitle, authorName, email, tagline, avatar (application.yml에서)
+  - githubUsername, categoryTree(왼쪽 사이드바),
+  - allTags, recentPosts(최근 5개), topTags(인기 태그 10개)
+  → 사이드바/헤더가 모든 페이지에서 동일하게 보이는 이유.
+
+
+================================================================================
+[5] API 명세서 — 외부(GitHub) REST API 연동
+================================================================================
+GitHubService가 RestClient로 GitHub REST API(https://api.github.com)를 호출한다.
+공통 헤더: Accept: application/vnd.github+json,
+          X-GitHub-Api-Version: 2022-11-28,
+          (토큰 있으면) Authorization: Bearer <토큰>
+
+--------------------------------------------------------------------------------
+기능              | 호출하는 GitHub API                        | 가공/용도
+--------------------------------------------------------------------------------
+저장소 목록        | GET /users/{user}/repos                    | fork 제외 +
+                  |   ?sort=updated&per_page=100&type=owner     | 최신순 정렬
+--------------------------------------------------------------------------------
+저장소 메타데이터   | GET /repos/{owner}/{repo}                  | 이름/설명/스타/
+                  |                                            | 포크/라이선스 등
+--------------------------------------------------------------------------------
+README           | GET /repos/{owner}/{repo}/readme           | Base64(MIME)
+                  |                                            | 디코딩 → 마크다운
+                  |                                            | → HTML 변환
+--------------------------------------------------------------------------------
+언어 비율         | GET /repos/{owner}/{repo}/languages        | 바이트 수 →
+                  |                                            | % 환산 + 색상
+--------------------------------------------------------------------------------
+
+[처리 포인트]
+- JSON → Java 변환: Jackson이 자동. 필드명이 snake_case라
+  @JsonProperty("html_url") 처럼 매핑, @JsonIgnoreProperties(ignoreUnknown=true)로
+  안 쓰는 필드는 무시.
+- 인증/한도: 토큰 없으면 시간당 60회, 토큰 있으면 5,000회.
+  토큰은 application.yml의 ${GITHUB_TOKEN:} → 환경변수에서 주입(코드/깃 비노출).
+- 우아한 실패: 호출 실패 시 빈 목록/null 반환 → 페이지는 안 깨지고,
+  상세는 컨트롤러에서 404 처리.
+- 자동 연동의 핵심: 저장소를 하드코딩하지 않고 매 요청마다 API로 가져오므로,
+  GitHub에 새 저장소를 만들면 코드 수정 없이 자동 반영됨.
+
+
+================================================================================
+[6] 핵심 동작 원리 (기술 포인트 정리)
+================================================================================
+
+(1) 글 저장 = 하이브리드 (파일 + DB)
+    - 기존 글: resources/posts/*.md → 앱 시작 시 PostService.loadPosts()가
+      @PostConstruct로 한 번 읽어 메모리에 캐싱(LinkedHashMap).
+    - .md 형식: 맨 위 --- --- 사이가 front matter(메타: title/date/category/
+      tags/summary), 그 아래가 마크다운 본문.
+    - 사용자 글: 웹 글쓰기 → H2 DB(PostEntity)에 저장.
+    - 조회(findAll)는 둘을 합쳐 최신순 정렬해 보여줌.
+    → "정적 콘텐츠(파일) + 동적 콘텐츠(DB)"를 한 화면에서 합치는 구조.
+
+(2) 마크다운 → HTML (CommonMark)
+    - 파일/DB 모두 본문은 마크다운으로 두고, 화면에 줄 때 HTML로 변환.
+    - 글 작성/관리가 쉽고, 본문 표현(코드블록, 목록 등)이 풍부.
+
+(3) 계층형 카테고리 (트리 + 재귀)
+    - CategoryService.buildTree()에서 대>중>소 분류를 코드로 구성.
+    - subtreeKeys(재귀)로 "자기+하위" 글을 한꺼번에 조회.
+    - breadcrumb으로 현재 위치의 상위 경로 표시.
+    - postCount는 하위까지 재귀 합산.
+
+(4) Thymeleaf 레이아웃 상속 (layout dialect)
+    - base.html이 헤더/3컬럼/사이드바/푸터 뼈대를 정의.
+    - 각 페이지는 layout:decorate="~{layout/base}"로 상속하고
+      layout:fragment="content"에 본문만 채움 → 중복 제거.
+    - fragments/ 안에 postList, categoryTree, categorySelect 같은 재사용 조각.
+
+(5) 바닐라 JS (app.js) — 필수 조건 충족
+    - 빈 검색어 제출 차단
+    - 현재 페이지 내비게이션 메뉴 강조
+    - 다크모드 토글 (data-theme 속성 + localStorage 저장, 새로고침 유지)
+    - 테마 강조색(색조 hue) 슬라이더 → CSS 변수(--primary) 실시간 변경 + 저장
+    - base.html 상단 인라인 스크립트로 저장된 테마를 CSS 적용 전 미리 세팅
+      → 새로고침 시 깜빡임(FOUC) 방지.
+
+(6) 설정 외부화 (application.yml + @Value)
+    - 블로그 제목/저자/이메일/아바타, GitHub 아이디/토큰, DB 설정을
+      코드 밖 yml로 분리. @Value로 주입.
+    - 한글이 yml(UTF-8)로 읽혀 깨지지 않음.
+
+(7) DB: H2 파일 모드
+    - jdbc:h2:file:./data/blogdb → 서버를 껐다 켜도 데이터 유지.
+    - ddl-auto: update → 엔티티 보고 테이블 자동 생성/갱신.
+    - /h2-console 로 데이터 눈으로 확인 가능.
+
+(8) 에러 처리
+    - 없는 글/카테고리/프로젝트 조회 시 HTTP 404 상태코드 + error/404.html.
+    - GitHub 호출 실패는 빈 결과 반환(우아한 실패).
+
+
+================================================================================
+[7] 디렉터리 구조 (핵심만)
+================================================================================
+src/main/java/com/portfolio/blog/
+  ├─ BlogApplication.java          # 스프링 부트 진입점(main)
+  ├─ controller/BlogController.java# 모든 URL 라우팅
+  ├─ service/
+  │    ├─ PostService.java         # 글(.md+DB) 로딩/조회/검색/작성
+  │    ├─ CategoryService.java     # 계층형 카테고리 트리
+  │    └─ GitHubService.java       # GitHub REST API 연동
+  ├─ repository/PostRepository.java# JPA DB 접근(인터페이스)
+  └─ model/                        # Post, PostEntity, Category,
+                                   #  GitHubRepo, GitHubRepoDetail, LanguageStat
+src/main/resources/
+  ├─ application.yml               # 설정(블로그정보/GitHub/DB)
+  ├─ posts/*.md                    # 기존 글(마크다운)
+  ├─ static/css/style.css          # 스타일
+  ├─ static/js/app.js              # 바닐라 JS
+  └─ templates/                    # Thymeleaf 뷰
+       ├─ layout/base.html         # 공통 레이아웃(상속 대상)
+       ├─ home/post/category/...   # 각 페이지
+       └─ fragments/               # 재사용 조각
+data/blogdb.mv.db                  # H2 DB 파일
+
+
+================================================================================
+[8] 🙋 예상 Q&A (발표/면접 대비)
+================================================================================
+
+── A. 전체 구조 / 설계 ──────────────────────────────────────────────────
+
+Q1. 이 프로젝트를 한 문장으로 설명하면?
+A. Spring Boot MVC 서버가 마크다운 글과 GitHub API 데이터를 모아 Thymeleaf로
+   HTML을 렌더링(SSR)하고, 사용자가 쓴 글은 H2 DB에 저장하는 포트폴리오
+   블로그입니다. 바닐라 JS로 다크모드/테마색/검색을 입혔습니다.
+
+Q2. 어떤 아키텍처(계층)로 짰나요?
+A. Controller-Service-Repository-Model-View의 전형적인 Spring MVC 레이어드
+   구조입니다. Controller가 URL을 받아 Service에 위임하고, Service가
+   비즈니스 로직(파일/DB/외부API)을 처리해 Model에 담으면 Thymeleaf가
+   HTML로 렌더링합니다.
+
+Q3. 이 앱은 REST API인가요?
+A. 사용자에게는 JSON이 아니라 완성된 HTML을 주는 SSR 방식입니다. 외부
+   GitHub와 통신할 때만 GitHub의 REST API를 호출해 데이터를 가져옵니다.
+
+Q4. SSR(서버 사이드 렌더링)을 쓴 이유는?
+A. 타임리프가 과제 필수 조건이기도 하고, 서버가 완성된 HTML을 주므로
+   초기 로딩과 SEO에 유리하며 GitHub 토큰을 브라우저에 노출하지 않을 수
+   있기 때문입니다.
+
+── B. 글 저장 / 하이브리드 구조 ─────────────────────────────────────────
+
+Q5. 글은 어디에 저장되나요?
+A. 두 군데입니다. 미리 작성한 글은 resources/posts/ 아래 .md 파일로,
+   웹 글쓰기로 작성한 글은 H2 DB(PostEntity)에 저장됩니다. 조회할 때
+   둘을 합쳐 최신순으로 보여주는 하이브리드 구조입니다.
+
+Q6. 왜 파일과 DB를 둘 다 쓰나요?
+A. 포트폴리오 본문 같은 정적인 글은 파일로 버전관리(깃)하기 좋고, 사용자가
+   실시간으로 작성하는 글은 DB가 적합하기 때문입니다. 두 출처를 Post라는
+   공통 뷰모델로 통일해 화면에서는 구분 없이 다룹니다.
+
+Q7. .md 파일은 언제, 어떻게 읽나요?
+A. 앱이 시작될 때 @PostConstruct가 붙은 loadPosts()가 한 번 실행되어
+   classpath의 posts/*.md를 모두 읽고 파싱해 메모리(Map)에 캐싱합니다.
+   매 요청마다 파일을 다시 읽지 않아 빠릅니다.
+
+Q8. .md 파일의 맨 위 --- --- 부분은 뭔가요?
+A. front matter라는 메타데이터 영역입니다. title, date, category, tags,
+   summary를 key: value로 적고, 그 아래가 실제 마크다운 본문입니다.
+   파서가 이 둘을 구분해 읽습니다.
+
+Q9. 마크다운은 어떻게 HTML이 되나요?
+A. CommonMark 라이브러리로 Parser가 파싱하고 HtmlRenderer가 HTML 문자열로
+   변환합니다. 파일 글, DB 글, GitHub README 모두 같은 방식으로 변환합니다.
+
+Q10. 글쓰기 저장 후 왜 리다이렉트하나요?
+A. PRG(Post-Redirect-Get) 패턴입니다. POST로 저장한 뒤 작성된 글
+   상세로 리다이렉트(302)하면, 새로고침 시 폼이 중복 제출되는 문제를
+   막을 수 있습니다.
+
+Q11. slug(URL 식별자)는 어떻게 만드나요?
+A. 제목을 소문자로 바꾸고 영문/숫자/한글 외 문자를 -로 치환해 만듭니다.
+   파일 글이나 DB에 같은 slug가 이미 있으면 -2, -3처럼 숫자를 붙여
+   중복을 피합니다.
+
+── C. 카테고리 / 검색 ──────────────────────────────────────────────────
+
+Q12. 카테고리는 어떻게 계층(트리)으로 구현했나요?
+A. Category 객체가 children 리스트를 가져 트리를 이룹니다.
+   CategoryService.buildTree()에서 대>중>소 분류를 코드로 구성하고,
+   재귀로 글 수를 합산하거나 하위 키를 수집합니다.
+
+Q13. 특정 카테고리를 누르면 하위 카테고리 글도 같이 나오나요?
+A. 네. subtreeKeys()가 재귀로 "자기 + 모든 하위" 카테고리 키를 모으고,
+   findByCategoryKeys()로 그 키들에 속한 글을 전부 보여줍니다.
+
+Q14. 검색은 어떻게 동작하나요?
+A. 전체 글을 대상으로 제목/요약/카테고리/태그에 검색어가 포함되는지
+   대소문자를 무시하고 필터링합니다. 결과는 home.html을 재사용해 보여줍니다.
+
+Q15. 페이지네이션은요?
+A. 홈에서 전체 글을 최신순으로 정렬한 뒤 page 파라미터에 따라 10개씩
+   subList로 잘라 보여주고, 현재 페이지/총 페이지 수를 같이 넘겨
+   페이지 버튼을 그립니다.
+
+── D. GitHub 자동 연동 ─────────────────────────────────────────────────
+
+Q16. GitHub 저장소가 웹에 자동으로 뜨는 원리는?
+A. /projects 접속 시 GitHubService가 RestClient로 GitHub REST API를 호출해
+   저장소 목록 JSON을 받고, Jackson으로 객체 변환·정렬해 화면에 뿌립니다.
+   저장소를 하드코딩하지 않으므로 새 저장소를 만들면 자동 반영됩니다.
+
+Q17. 브라우저가 직접 GitHub를 부르지 않고 왜 서버가 부르나요?
+A. ① 토큰을 브라우저에 노출하지 않으려고(보안), ② 서버 간 통신이라
+   CORS 제약이 없고, ③ 완성된 HTML을 주는 SSR이라 SEO/로딩에 유리해서입니다.
+
+Q18. 프로젝트 상세 페이지에는 뭐가 들어가나요?
+A. 저장소 메타데이터(스타/포크/라이선스/날짜), README(마크다운→HTML),
+   언어 사용 비율(바이트→% 막대그래프), 미리보기 이미지를 GitHub의 여러
+   API를 조합해 보여줍니다.
+
+Q19. README는 어떻게 가져오나요?
+A. /repos/{owner}/{repo}/readme API가 README를 Base64로 주는데, 줄바꿈이
+   섞여 있어 MIME 디코더로 디코딩한 뒤 마크다운을 HTML로 변환합니다.
+
+Q20. 언어 비율 그래프는 어떻게 계산하나요?
+A. /languages API가 언어별 바이트 수를 주면, 전체 합 대비 퍼센트로 환산하고
+   언어별 색을 매핑해 막대그래프로 그립니다.
+
+Q21. 토큰 없이도 되나요? 호출 한도는?
+A. 됩니다. 토큰 없으면 시간당 60회, 토큰이 있으면 5,000회입니다. 토큰은
+   환경변수(${GITHUB_TOKEN:})로 주입해 코드/깃에 노출되지 않게 했습니다.
+
+Q22. GitHub가 응답하지 않으면 페이지가 깨지나요?
+A. 아니요. 호출 실패 시 빈 목록을 반환하는 "우아한 실패"라 페이지는 정상
+   뜨고 저장소 영역만 비거나 안내 문구가 나옵니다. 상세는 404로 처리합니다.
+
+── E. JSON / Jackson ───────────────────────────────────────────────────
+
+Q23. JSON이 어떻게 자바 객체가 되나요?
+A. RestClient의 .body(GitHubRepo[].class) 한 줄로, Spring이 내부의 Jackson을
+   써서 응답 JSON을 자바 객체(배열)로 역직렬화합니다.
+
+Q24. @JsonProperty와 @JsonIgnoreProperties는 왜 쓰나요?
+A. GitHub JSON 필드는 html_url처럼 snake_case라 자바의 htmlUrl과 다릅니다.
+   @JsonProperty로 둘을 연결합니다. 그리고 응답엔 필드가 수십 개인데 일부만
+   쓰므로 @JsonIgnoreProperties(ignoreUnknown=true)로 나머지는 무시합니다.
+
+Q25. 왜 class 대신 record를 썼나요?
+A. 화면에 데이터를 전달하는 DTO는 불변이면 충분하고, record가 생성자/
+   getter/equals를 자동 생성해 코드가 간결해지기 때문입니다.
+
+── F. 스프링 / DB / 설정 ───────────────────────────────────────────────
+
+Q26. @Controller, @Service, @Repository의 역할은?
+A. @Controller는 웹 요청 처리, @Service는 비즈니스 로직, Repository는 DB
+   접근입니다. 스프링이 이들을 빈으로 관리하며 생성자 주입으로 연결합니다.
+
+Q27. PostRepository는 구현 코드가 없는데 어떻게 동작하나요?
+A. Spring Data JPA가 JpaRepository를 상속한 인터페이스의 구현체를 런타임에
+   자동 생성합니다. findBySlug, existsBySlug 같은 메서드도 이름 규칙만으로
+   쿼리를 자동 구현해줍니다.
+
+Q28. H2 DB를 파일 모드로 쓴 이유는?
+A. 임베디드라 설치가 필요 없어 시연이 간단하고, file 모드(jdbc:h2:file)라
+   서버를 껐다 켜도 작성한 글이 유지되기 때문입니다.
+
+Q29. ddl-auto: update는 뭔가요?
+A. 엔티티 클래스를 보고 테이블을 자동 생성/갱신하는 옵션입니다. 개발 중
+   스키마를 따로 작성하지 않아도 되어 편리합니다.
+
+Q30. @Value와 application.yml은 왜 쓰나요?
+A. 블로그 제목/GitHub 아이디/토큰 등 설정값을 코드에서 분리하기 위해서입니다.
+   값이 바뀌어도 코드를 안 고치고 설정만 바꾸면 되고, 토큰 같은 민감정보를
+   환경변수로 안전하게 주입할 수 있습니다.
+
+Q31. RestClient를 왜 생성자에서 한 번만 만드나요?
+A. RestClient는 재사용 가능한 객체라 요청마다 새로 만들 필요가 없습니다.
+   빈 생성 시 한 번 구성해 헤더/설정을 재사용하는 게 효율적입니다.
+
+── G. 프론트엔드 (바닐라 JS / Thymeleaf) ────────────────────────────────
+
+Q32. 바닐라 JS로 어떤 기능을 구현했나요?
+A. 빈 검색 차단, 현재 메뉴 강조, 다크모드 토글, 테마 강조색(hue) 슬라이더
+   입니다. 다크모드/색상 선택은 localStorage에 저장해 새로고침해도 유지됩니다.
+
+Q33. 다크모드는 어떻게 구현했나요?
+A. html 요소의 data-theme 속성을 dark/light로 토글하고 CSS가 그에 맞는
+   색을 적용합니다. 선택값은 localStorage에 저장하고, base.html 상단
+   인라인 스크립트가 CSS 적용 전에 미리 적용해 깜빡임을 막습니다.
+
+Q34. 테마 강조색은 어떻게 바뀌나요?
+A. 슬라이더로 색조(hue) 값을 받아 CSS 변수 --primary를 hsl()로 갱신합니다.
+   CSS 변수 하나만 바꾸면 사이트 전체 강조색이 일괄 변경됩니다.
+
+Q35. Thymeleaf 레이아웃은 어떻게 재사용했나요?
+A. base.html에 헤더/3컬럼/사이드바/푸터 뼈대를 두고, 각 페이지가
+   layout:decorate로 상속해 content 프래그먼트에 본문만 채웁니다.
+   공통 사이드바 데이터는 @ModelAttribute로 모든 페이지에 자동 주입합니다.
+
+Q36. 사이드바(최근 글/인기 태그)가 모든 페이지에 나오는 이유는?
+A. 컨트롤러의 @ModelAttribute commonAttributes()가 모든 요청에서 공통
+   데이터(카테고리/최근 글/인기 태그 등)를 Model에 미리 담기 때문입니다.
+
+── H. 한계 / 개선 ──────────────────────────────────────────────────────
+
+Q37. 현재 한계와 개선점은?
+A. ① GitHub를 매 요청마다 호출 → @Cacheable 캐싱으로 개선,
+   ② 저장소 100개 초과 시 잘림 → 페이지네이션 루프,
+   ③ 글 수정/삭제 미구현 → CRUD 보강,
+   ④ 인증/관리자 기능 없음 → 누구나 글쓰기 가능하므로 로그인 추가,
+   ⑤ 로깅을 System.err 대신 SLF4J 정식 로거로.
+
+Q38. 보안 측면에서 고려한 점은?
+A. GitHub 토큰을 환경변수로 분리했고, 외부 호출을 서버가 대신 해 토큰을
+   브라우저에 노출하지 않습니다. (개선점: 글쓰기에 인증이 없는 점,
+   README HTML을 escapeHtml=false로 렌더하는 점은 본인 저장소라 허용했지만
+   외부 입력엔 위험할 수 있어 보완 대상입니다.)
+
+── I. 30초 발표 대본 ───────────────────────────────────────────────────
+"이 프로젝트는 Spring Boot MVC + Thymeleaf 기반 SSR 포트폴리오 블로그입니다.
+글은 마크다운 파일과 H2 DB 두 곳에서 가져와 합쳐 보여주는 하이브리드 구조이고,
+PROJECTS 페이지는 GitHub REST API를 RestClient로 호출해 저장소를 자동으로
+가져옵니다. JSON은 Jackson이 객체로 변환하고, 모든 본문은 CommonMark로
+마크다운을 HTML로 렌더링합니다. 프론트엔드는 바닐라 JS로 다크모드와 테마색,
+검색을 구현했고 설정값은 application.yml로 분리했습니다. 호출 실패에도 빈
+결과를 반환해 페이지가 깨지지 않도록 했습니다."
+
+================================================================================
+                                   끝.
+================================================================================

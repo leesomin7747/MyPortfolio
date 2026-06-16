@@ -45,3 +45,9 @@ out/
 
 ### VS Code ###
 .vscode/
+
+### H2 DB 파일 (커밋 금지) ###
+/data/
+
+### Claude Code ###
+.claude/

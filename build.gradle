@@ -24,6 +24,9 @@ dependencies {
 	implementation 'org.commonmark:commonmark:0.24.0'
 	// 타임리프 레이아웃 데코레이터 (layout:decorate, layout:fragment)
 	implementation 'nz.net.ultraq.thymeleaf:thymeleaf-layout-dialect:3.4.0'
+	// DB: Spring Data JPA + H2 (임베디드, 파일 모드)
+	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+	runtimeOnly 'com.h2database:h2'
 	developmentOnly 'org.springframework.boot:spring-boot-devtools'
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'

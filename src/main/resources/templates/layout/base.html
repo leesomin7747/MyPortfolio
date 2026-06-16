@@ -12,10 +12,16 @@
             var t = localStorage.getItem('theme');
             if (t) document.documentElement.setAttribute('data-theme', t);
             var h = localStorage.getItem('accentHue');   // 저장된 강조색(색조)
-            if (h) document.documentElement.style.setProperty('--primary', 'hsl(' + h + ', 70%, 45%)');
+            if (h) {
+                document.documentElement.style.setProperty('--primary', 'hsl(' + h + ', 70%, 45%)');
+                document.documentElement.style.setProperty('--accent-tint', 'hsla(' + h + ', 70%, 50%, 0.12)');
+            }
         })();
     </script>
     <link rel="stylesheet" th:href="@{/css/style.css}">
+    <!-- Google Material Symbols 아이콘 -->
+    <link rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined">
 </head>
 <body>
 
@@ -30,6 +36,9 @@
             <a th:href="@{/tags}">TAGS</a>
             <a th:href="@{/projects}">PROJECTS</a>
             <a th:href="@{/about}">ABOUT</a>
+            <a th:href="@{/write}" title="글쓰기" aria-label="글쓰기">
+                <span class="material-symbols-outlined">edit_square</span>
+            </a>
         </nav>
 
         <form class="search-form" th:action="@{/search}" method="get">
@@ -39,7 +48,9 @@
 
         <!-- 테마 색상(강조색) 지정 -->
         <div class="color-picker-wrap">
-            <button type="button" id="color-toggle" class="theme-btn" aria-label="테마 색상">🎨</button>
+            <button type="button" id="color-toggle" class="theme-btn" aria-label="테마 색상">
+                <span class="material-symbols-outlined">palette</span>
+            </button>
             <div id="color-panel" class="color-panel" hidden>
                 <div class="color-panel-head">
                     <span class="cp-title">테마 색상</span>
@@ -51,7 +62,9 @@
         </div>
 
         <!-- 다크모드 토글 (클릭 시 라이트/다크 전환) -->
-        <button type="button" id="theme-toggle" class="theme-btn" aria-label="다크모드 전환">🌙</button>
+        <button type="button" id="theme-toggle" class="theme-btn" aria-label="다크모드 전환">
+            <span class="material-symbols-outlined">dark_mode</span>
+        </button>
     </div>
 </header>
 

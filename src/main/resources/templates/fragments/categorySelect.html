@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<!--
+  글쓰기 폼의 카테고리 "선택" 트리.
+  - 자식이 있는 카테고리: <details> 토글 (분류용, 선택 불가)
+  - 최하위(말단) 카테고리: 라디오 버튼으로 선택 (name="category", value=key)
+  사용: <div th:replace="~{fragments/categorySelect :: select(${categoryTree}, 1)}"></div>
+-->
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<th:block th:fragment="select(nodes, level)">
+    <ul class="cat-select-tree">
+        <li th:each="c : ${nodes}">
+
+            <!-- 부모 카테고리 → 토글 -->
+            <details th:if="${c.hasChildren}" class="cat-toggle">
+                <summary class="cat-row" th:classappend="'lvl-' + ${level}">
+                    <span class="cat-name" th:text="${c.name}">카테고리</span>
+                </summary>
+                <th:block th:replace="~{fragments/categorySelect :: select(${c.children}, ${level + 1})}"></th:block>
+            </details>
+
+            <!-- 말단 카테고리 → 라디오 선택 -->
+            <label th:unless="${c.hasChildren}" class="cat-radio cat-row" th:classappend="'lvl-' + ${level}">
+                <input type="radio" name="category" th:value="${c.key}">
+                <span class="cat-name" th:text="${c.name}">카테고리</span>
+            </label>
+
+        </li>
+    </ul>
+</th:block>
+
+</body>
+</html>

@@ -130,6 +130,9 @@ public class CategoryService {
     // ───────────────────────────────────────────────────────────────
     public List<Category> getRoots() { return roots; }
 
+    /** 전체 카테고리(평탄화) — 글쓰기 폼의 선택목록용 */
+    public Collection<Category> getAll() { return byKey.values(); }
+
     public Category findByKey(String key) { return byKey.get(key); }
 
     public String nameOf(String key) {

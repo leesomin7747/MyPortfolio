@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="ko"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/base}">
+<head>
+    <title>글쓰기</title>
+</head>
+<body>
+<div layout:fragment="content">
+
+    <h1 class="page-title">글쓰기</h1>
+
+    <!-- /write 로 POST 전송 -->
+    <form class="write-form" th:action="@{/write}" method="post">
+
+        <label>제목
+            <input type="text" name="title" required placeholder="제목을 입력하세요">
+        </label>
+
+        <div class="cat-field">
+            <span class="cat-field-label">카테고리</span>
+            <div class="cat-select">
+                <div th:replace="~{fragments/categorySelect :: select(${categoryTree}, 1)}"></div>
+            </div>
+        </div>
+
+        <label>태그
+            <input type="text" name="tags" placeholder="예: java, spring, web">
+        </label>
+
+        <label>요약
+            <input type="text" name="summary" placeholder="한 줄 요약">
+        </label>
+
+        <label>본문
+            <textarea name="content" rows="14" placeholder="## 소제목&#10;&#10;마크다운으로 작성하세요. **굵게**, `코드`, - 목록 등 지원"></textarea>
+        </label>
+
+        <div class="write-actions">
+            <button type="submit" class="btn">발행</button>
+            <a class="btn ghost" th:href="@{/}">취소</a>
+        </div>
+    </form>
+
+</div>
+</body>
+</html>
