@@ -1,9 +1,4 @@
 <!DOCTYPE html>
-<!--
-  공통 레이아웃(데코레이터). 각 페이지는 맨 위에
-  <html layout:decorate="~{layout/base}"> 를 선언하고
-  <... layout:fragment="content"> 안에 본문만 채우면 된다.
--->
 <html lang="ko"
       xmlns:th="http://www.thymeleaf.org"
       xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout">
@@ -11,11 +6,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title th:text="${pageTitle != null ? pageTitle + ' | ' + siteTitle : siteTitle}">My Portfolio</title>
+    <!-- 저장된 테마를 CSS 적용 전에 미리 설정 → 새로고침 시 깜빡임 방지 -->
+    <script>
+        (function () {
+            var t = localStorage.getItem('theme');
+            if (t) document.documentElement.setAttribute('data-theme', t);
+        })();
+    </script>
     <link rel="stylesheet" th:href="@{/css/style.css}">
 </head>
 <body>
 
-<!-- ===== 헤더 / 내비게이션 ===== -->
+<!-- ===== 헤더 ===== -->
 <header class="site-header">
     <div class="header-inner">
         <a class="brand" th:href="@{/}" th:text="${siteTitle}">My Portfolio</a>
@@ -32,31 +34,30 @@
             <input type="text" name="q" placeholder="Search…" aria-label="검색">
             <button type="submit">🔍</button>
         </form>
+
+        <!-- 다크모드 토글 (클릭 시 라이트/다크 전환) -->
+        <button type="button" id="theme-toggle" class="theme-btn" aria-label="다크모드 전환">🌙</button>
     </div>
 </header>
 
-<!-- ===== 본문 + 사이드바 ===== -->
+<!-- ===== 3컬럼 본문 ===== -->
 <div class="container">
-    <main class="content">
-        <!-- 각 페이지의 layout:fragment="content" 가 여기에 들어옴 -->
-        <div layout:fragment="content">
-            <p>내용이 여기에 표시됩니다.</p>
-        </div>
-    </main>
 
-    <aside class="sidebar">
-        <!-- 작성자 카드 -->
+    <!-- ===== 왼쪽 사이드바 (프로필 · 카테고리 · Contact) ===== -->
+    <aside class="sidebar-left">
+
+        <!-- 프로필 카드 -->
         <section class="card profile-card">
-            <h2 th:text="${authorName}">홍길동</h2>
-            <p class="muted">Welcome to my portfolio blog</p>
-            <div class="social">
-                <a th:href="'https://github.com/' + ${githubUsername}" target="_blank" rel="noopener">github</a>
-                <a href="mailto:your-email@example.com">mail</a>
-                <a href="#" target="_blank" rel="noopener">SNS</a>
-            </div>
+            <!-- avatar 설정이 있으면 사진, 없으면 이름 첫 글자 -->
+            <img th:if="${avatar != null and !#strings.isEmpty(avatar)}"
+                 class="avatar-img" th:src="${avatar}" alt="프로필 사진">
+            <div th:unless="${avatar != null and !#strings.isEmpty(avatar)}"
+                 class="avatar" th:text="${authorName.substring(0,1).toUpperCase()}">L</div>
+            <h2 th:text="${authorName}">이름</h2>
+            <p class="muted" th:text="${tagline}">InfoSec @ USW</p>
         </section>
 
-        <!-- 카테고리 (최상위 대분류만 간결하게. 전체 구조는 CATEGORIES 페이지) -->
+        <!-- 카테고리 대분류 -->
         <section class="card">
             <h3>CATEGORIES</h3>
             <ul class="side-list">
@@ -70,23 +71,63 @@
             <a class="see-all" th:href="@{/categories}">전체 보기 →</a>
         </section>
 
-        <!-- 태그 -->
+        <!-- Contact -->
         <section class="card">
-            <h3>TAGS</h3>
+            <h3>CONTACT</h3>
+            <ul class="contact-list">
+                <li>
+                    <a th:href="'https://github.com/' + ${githubUsername}" target="_blank" rel="noopener">
+                        GitHub · @<span th:text="${githubUsername}">username</span>
+                    </a>
+                </li>
+                <li th:if="${email != null and !#strings.isEmpty(email)}">
+                    <a th:href="'mailto:' + ${email}" th:text="${email}">email</a>
+                </li>
+            </ul>
+        </section>
+
+    </aside>
+
+    <!-- ===== 메인 컨텐츠 ===== -->
+    <main class="content">
+        <div layout:fragment="content">
+            <p>내용이 여기에 표시됩니다.</p>
+        </div>
+    </main>
+
+    <!-- ===== 오른쪽 사이드바 (최근 글 · 인기 태그) ===== -->
+    <aside class="sidebar-right">
+
+        <!-- 최근 작성 글 5개 -->
+        <section class="card">
+            <h3>RECENTLY UPDATED</h3>
+            <ul class="side-list recent-list">
+                <li th:each="p : ${recentPosts}">
+                    <a th:href="@{'/post/' + ${p.slug}}" th:text="${p.title}">제목</a>
+                </li>
+                <li th:if="${recentPosts.isEmpty()}" class="muted">글이 없습니다</li>
+            </ul>
+        </section>
+
+        <!-- 인기 태그 TOP 10 -->
+        <section class="card">
+            <h3>TRENDING TAGS</h3>
             <div class="tag-cloud">
-                <a th:each="entry : ${allTags}"
+                <a th:each="entry : ${topTags}"
                    th:href="@{'/tag/' + ${entry.key}}"
                    class="tag"
-                   th:text="'#' + ${entry.key}">#java</a>
-                <span th:if="${allTags.isEmpty()}" class="muted">아직 태그가 없습니다</span>
+                   th:text="'#' + ${entry.key}">#tag</a>
+                <span th:if="${topTags.isEmpty()}" class="muted">태그가 없습니다</span>
             </div>
         </section>
+
     </aside>
+
 </div>
 
 <!-- ===== 푸터 ===== -->
 <footer class="site-footer">
-    <p>© <span th:text="${authorName}">홍길동</span> · Powered by Spring Boot + Thymeleaf</p>
+    <p>© <span th:text="${authorName}">이름</span> · Powered by Spring Boot + Thymeleaf</p>
 </footer>
 
 <script th:src="@{/js/app.js}"></script>

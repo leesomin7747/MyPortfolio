@@ -1,6 +1,7 @@
 HELP.md
 .gradle
 build/
+.DS_Store
 
 ### Secrets (절대 커밋 금지) ###
 .env

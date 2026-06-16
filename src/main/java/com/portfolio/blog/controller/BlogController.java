@@ -13,12 +13,9 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 
-/**
- * 블로그 전체 페이지 라우팅을 담당하는 컨트롤러.
- * 각 메서드가 화면(템플릿) 하나에 대응한다.
- */
 @Controller
 public class BlogController {
 
@@ -28,42 +25,73 @@ public class BlogController {
 
     private final String siteTitle;
     private final String authorName;
+    private final String email;
+    private final String tagline;
+    private final String avatar;
 
     public BlogController(PostService postService,
                           GitHubService gitHubService,
                           CategoryService categoryService,
                           @Value("${blog.title}") String siteTitle,
-                          @Value("${blog.author}") String authorName) {
+                          @Value("${blog.author}") String authorName,
+                          @Value("${blog.email:}") String email,
+                          @Value("${blog.tagline:}") String tagline,
+                          @Value("${blog.avatar:}") String avatar) {
         this.postService = postService;
         this.gitHubService = gitHubService;
         this.categoryService = categoryService;
         this.siteTitle = siteTitle;
         this.authorName = authorName;
+        this.email = email;
+        this.tagline = tagline;
+        this.avatar = avatar;
     }
 
-    /**
-     * 모든 페이지에 공통으로 들어가는 사이드바/헤더용 데이터.
-     * (@ModelAttribute 메서드는 이 컨트롤러의 모든 핸들러 실행 전에 자동 호출됨)
-     */
     @ModelAttribute
     public void commonAttributes(Model model) {
         model.addAttribute("siteTitle", siteTitle);
         model.addAttribute("authorName", authorName);
+        model.addAttribute("email", email);
+        model.addAttribute("tagline", tagline);
+        model.addAttribute("avatar", avatar);
         model.addAttribute("githubUsername", gitHubService.getUsername());
-        model.addAttribute("categoryTree", categoryService.getRoots());   // 계층형 카테고리 트리
-        model.addAttribute("cats", categoryService);                      // 템플릿에서 cats.nameOf(key) 사용
+        model.addAttribute("categoryTree", categoryService.getRoots());
+        model.addAttribute("cats", categoryService);
         model.addAttribute("allTags", postService.tagCounts());
+
+        // 오른쪽 사이드바: 최근 글 5개
+        model.addAttribute("recentPosts", postService.findAll().stream().limit(5).toList());
+
+        // 오른쪽 사이드바: 인기 태그 상위 10개
+        var topTags = new LinkedHashMap<String, Long>();
+        postService.tagCounts().entrySet().stream().limit(10)
+                .forEach(e -> topTags.put(e.getKey(), e.getValue()));
+        model.addAttribute("topTags", topTags);
     }
 
-    /** HOME: 전체 글 목록 */
+    private static final int PAGE_SIZE = 10;   // 한 페이지에 보여줄 글 수
+
     @GetMapping("/")
-    public String home(Model model) {
-        model.addAttribute("posts", postService.findAll());
+    public String home(@RequestParam(defaultValue = "1") int page, Model model) {
+        List<Post> all = postService.findAll();
+        int total = all.size();
+        int totalPages = Math.max(1, (int) Math.ceil(total / (double) PAGE_SIZE));
+
+        // 페이지 번호 범위 보정
+        if (page < 1) page = 1;
+        if (page > totalPages) page = totalPages;
+
+        int from = (page - 1) * PAGE_SIZE;
+        int to = Math.min(from + PAGE_SIZE, total);
+        List<Post> pagePosts = all.subList(from, to);
+
+        model.addAttribute("posts", pagePosts);
+        model.addAttribute("currentPage", page);
+        model.addAttribute("totalPages", totalPages);
         model.addAttribute("pageTitle", "HOME");
         return "home";
     }
 
-    /** 글 상세 */
     @GetMapping("/post/{slug}")
     public String post(@PathVariable String slug, Model model) {
         Post post = postService.findBySlug(slug);
@@ -77,14 +105,12 @@ public class BlogController {
         return "post";
     }
 
-    /** 카테고리 전체 목록 */
     @GetMapping("/categories")
     public String categories(Model model) {
         model.addAttribute("pageTitle", "CATEGORIES");
         return "categories";
     }
 
-    /** 특정 카테고리(계층형): 소개글 + 하위 카테고리 + 해당 노드와 하위 전체의 글 */
     @GetMapping("/category/{key}")
     public String category(@PathVariable String key, Model model) {
         Category category = categoryService.findByKey(key);
@@ -99,14 +125,12 @@ public class BlogController {
         return "category";
     }
 
-    /** 태그 클라우드 */
     @GetMapping("/tags")
     public String tags(Model model) {
         model.addAttribute("pageTitle", "TAGS");
         return "tags";
     }
 
-    /** 특정 태그의 글 목록 */
     @GetMapping("/tag/{name}")
     public String tag(@PathVariable String name, Model model) {
         model.addAttribute("posts", postService.findByTag(name));
@@ -115,14 +139,12 @@ public class BlogController {
         return "home";
     }
 
-    /** ABOUT */
     @GetMapping("/about")
     public String about(Model model) {
         model.addAttribute("pageTitle", "ABOUT");
         return "about";
     }
 
-    /** ⭐ PROJECTS: 깃허브 저장소 자동 표시 */
     @GetMapping("/projects")
     public String projects(Model model) {
         model.addAttribute("repos", gitHubService.fetchRepos());
@@ -130,7 +152,19 @@ public class BlogController {
         return "projects";
     }
 
-    /** 검색 */
+    /** 프로젝트 상세: README·언어비율·메타데이터·미리보기 이미지 */
+    @GetMapping("/projects/{repo}")
+    public String projectDetail(@PathVariable String repo, Model model) {
+        var detail = gitHubService.fetchRepoDetail(repo);
+        if (detail == null) {
+            model.addAttribute("pageTitle", "Not Found");
+            return "error/404";
+        }
+        model.addAttribute("repo", detail);
+        model.addAttribute("pageTitle", detail.name());
+        return "project-detail";
+    }
+
     @GetMapping("/search")
     public String search(@RequestParam(value = "q", required = false) String q, Model model) {
         List<Post> results = postService.search(q);

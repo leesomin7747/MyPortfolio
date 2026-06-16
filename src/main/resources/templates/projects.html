@@ -18,7 +18,7 @@
 
     <div class="repo-grid">
         <a class="repo-card" th:each="repo : ${repos}"
-           th:href="${repo.htmlUrl}" target="_blank" rel="noopener">
+           th:href="@{'/projects/' + ${repo.name}}">
             <h3 th:text="${repo.name}">repo-name</h3>
             <p class="repo-desc" th:text="${repo.description != null ? repo.description : '설명 없음'}">설명</p>
             <div class="repo-meta">

@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="ko"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/base}">
+<head>
+    <title>Project</title>
+</head>
+<body>
+<div layout:fragment="content">
+
+    <nav class="breadcrumb">
+        <a th:href="@{/projects}">PROJECTS</a> / <span th:text="${repo.name}">repo</span>
+    </nav>
+
+    <!-- ── 헤더 ── -->
+    <header class="proj-header">
+        <h1 class="page-title" th:text="${repo.name}">repo-name</h1>
+        <p class="proj-desc" th:if="${repo.description != null}" th:text="${repo.description}">설명</p>
+
+        <!-- 토픽 뱃지 -->
+        <div class="tag-cloud" th:if="${!repo.topics.isEmpty()}">
+            <span class="tag" th:each="t : ${repo.topics}" th:text="'#' + ${t}">#topic</span>
+        </div>
+
+        <div class="proj-links">
+            <a class="btn" th:href="${repo.htmlUrl}" target="_blank" rel="noopener">GitHub에서 보기 ↗</a>
+            <a class="btn ghost" th:if="${repo.homepage != null and !#strings.isEmpty(repo.homepage)}"
+               th:href="${repo.homepage}" target="_blank" rel="noopener">데모 사이트 ↗</a>
+        </div>
+    </header>
+
+    <!-- ── 그림: GitHub 미리보기 이미지 ── -->
+    <img class="proj-og" th:src="${repo.ogImageUrl}" alt="repository preview" loading="lazy">
+
+    <!-- ── 그래프 + 표 (2단) ── -->
+    <div class="proj-info">
+
+        <!-- 언어 비율 그래프 -->
+        <section class="card" th:if="${!repo.languages.isEmpty()}">
+            <h3>언어 비율</h3>
+            <div class="lang-bar">
+                <span th:each="l : ${repo.languages}"
+                      th:style="'width:' + ${l.percent} + '%; background:' + ${l.color}"
+                      th:title="${l.name} + ' ' + ${l.percent} + '%'"></span>
+            </div>
+            <ul class="lang-legend">
+                <li th:each="l : ${repo.languages}">
+                    <span class="dot" th:style="'background:' + ${l.color}"></span>
+                    <span th:text="${l.name}">Java</span>
+                    <span class="muted" th:text="${l.percent} + '%'">0%</span>
+                </li>
+            </ul>
+        </section>
+
+        <!-- 메타데이터 표 -->
+        <section class="card">
+            <h3>정보</h3>
+            <table class="meta-table">
+                <tr><th>주 언어</th><td th:text="${repo.mainLanguage != null ? repo.mainLanguage : '-'}">Java</td></tr>
+                <tr><th>★ Stars</th><td th:text="${repo.stars}">0</td></tr>
+                <tr><th>⑂ Forks</th><td th:text="${repo.forks}">0</td></tr>
+                <tr><th>👀 Watchers</th><td th:text="${repo.watchers}">0</td></tr>
+                <tr><th>Open Issues</th><td th:text="${repo.openIssues}">0</td></tr>
+                <tr><th>License</th><td th:text="${repo.licenseName != null ? repo.licenseName : '-'}">-</td></tr>
+                <tr><th>생성일</th><td th:text="${repo.createdAt != null ? #strings.substring(repo.createdAt,0,10) : '-'}">-</td></tr>
+                <tr><th>최근 푸시</th><td th:text="${repo.pushedAt != null ? #strings.substring(repo.pushedAt,0,10) : '-'}">-</td></tr>
+            </table>
+        </section>
+    </div>
+
+    <!-- ── 텍스트: README ── -->
+    <section class="card readme-card">
+        <h3>README</h3>
+        <div class="post-content readme-body" th:utext="${repo.readmeHtml}">README 내용</div>
+    </section>
+
+</div>
+</body>
+</html>

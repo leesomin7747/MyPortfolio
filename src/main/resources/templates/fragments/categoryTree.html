@@ -1,7 +1,9 @@
 <!DOCTYPE html>
 <!--
   계층형 카테고리를 재귀적으로 렌더링하는 프래그먼트.
-  level: 깊이(1=대분류, 2=중분류, 3=소분류) → CSS에서 위계 표현에 사용.
+  - 자식이 있는 노드: <details>/<summary> 토글 (클릭하면 하위 펼침/접힘)
+  - 자식이 없는 말단 노드: 카테고리 페이지로 가는 링크
+  level: 깊이(1=대분류, 2=중분류, 3=소분류) → CSS 위계 표현에 사용.
   사용: <div th:replace="~{fragments/categoryTree :: tree(${categoryTree}, 1)}"></div>
 -->
 <html xmlns:th="http://www.thymeleaf.org">
@@ -10,13 +12,25 @@
 <th:block th:fragment="tree(nodes, level)">
     <ul class="cat-tree" th:classappend="'depth-' + ${level}">
         <li th:each="c : ${nodes}">
-            <a th:href="@{'/category/' + ${c.key}}" class="cat-row" th:classappend="'lvl-' + ${level}">
+
+            <!-- ① 자식 있는 카테고리 → 토글 -->
+            <details th:if="${c.hasChildren}" class="cat-toggle">
+                <summary class="cat-row" th:classappend="'lvl-' + ${level}">
+                    <span class="cat-name" th:text="${c.name}">카테고리</span>
+                    <span class="count" th:if="${c.postCount > 0}" th:text="${c.postCount}">0</span>
+                </summary>
+                <!-- 펼쳐질 하위 트리 (재귀) -->
+                <th:block th:replace="~{fragments/categoryTree :: tree(${c.children}, ${level + 1})}"></th:block>
+            </details>
+
+            <!-- ② 말단 카테고리 → 링크 -->
+            <a th:unless="${c.hasChildren}"
+               th:href="@{'/category/' + ${c.key}}"
+               class="cat-row leaf" th:classappend="'lvl-' + ${level}">
                 <span class="cat-name" th:text="${c.name}">카테고리</span>
                 <span class="count" th:if="${c.postCount > 0}" th:text="${c.postCount}">0</span>
             </a>
-            <!-- 하위 카테고리가 있으면 level+1 로 재귀 호출 -->
-            <th:block th:if="${c.hasChildren}"
-                      th:replace="~{fragments/categoryTree :: tree(${c.children}, ${level + 1})}"></th:block>
+
         </li>
     </ul>
 </th:block>

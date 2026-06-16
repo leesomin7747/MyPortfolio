@@ -1,11 +1,25 @@
-# MyPortfolio
-웹프로그래밍 기말 과제 — Spring Boot + Thymeleaf + Vanilla JS
+# 포트폴리오 블로그 (Spring Boot + Thymeleaf + Vanilla JS)
 
 ## 실행 방법
 ```bash
 cd 웹프로젝트
 ./gradlew bootRun
 # 브라우저에서 http://localhost:8080 접속
+```
+
+## 개인정보
+`src/main/resources/application.yml`
+```yaml
+blog:
+  title: My Portfolio      # 사이트 제목
+  author: 홍길동             # 본인 이름
+  tagline: 한 줄 소개
+  email: you@example.com
+  avatar: /img/profile.jpg
+
+github:
+  username: octocat        # ★ 본인 깃허브 아이디로 변경
+  token: "${GITHUB_TOKEN:}" # 환경변수로 주입 (파일에 직접 넣지 말 것)
 ```
 
 ## 구조
@@ -44,3 +58,4 @@ summary: 목록에 보일 한 줄 요약
 - 마크다운 변환: `commonmark` 라이브러리
 - 글은 앱 시작 시 한 번 메모리에 로딩(`@PostConstruct`). 글 추가 후엔 서버 재시작(devtools가 자동 리로드).
 - GitHub API 실패 시(네트워크 등) 페이지는 빈 목록으로 정상 동작.
+- 설정 파일은 한글 인코딩 문제로 `application.properties` 대신 `application.yml` 사용 (YAML은 UTF-8로 읽힘).

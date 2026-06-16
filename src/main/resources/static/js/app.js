@@ -24,6 +24,23 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // 3) (추가기능 아이디어) 글 목록 실시간 필터, 다크모드 토글,
-    //    GitHub 잔디 표시 등을 여기에 바닐라 JS로 구현하면 가산점!
+    // 3) 다크모드 토글
+    const themeToggle = document.getElementById('theme-toggle');
+
+    // 현재 테마에 맞는 아이콘(🌙/☀️) 표시
+    function updateThemeIcon() {
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        if (themeToggle) themeToggle.textContent = isDark ? '☀️' : '🌙';
+    }
+    updateThemeIcon();
+
+    if (themeToggle) {
+        themeToggle.addEventListener('click', () => {
+            const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+            const next = isDark ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', next); // 테마 적용
+            localStorage.setItem('theme', next);                       // 선택 기억(새로고침해도 유지)
+            updateThemeIcon();
+        });
+    }
 });

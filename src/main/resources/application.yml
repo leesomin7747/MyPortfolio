@@ -1,0 +1,21 @@
+spring:
+  application:
+    name: blog
+  thymeleaf:
+    cache: false              # 개발 중에는 템플릿 캐시 끄기
+
+# ===== 블로그 기본 정보 (YAML은 UTF-8로 읽혀 한글 안 깨짐) =====
+blog:
+  title: LEESOMIN
+  author: 이소민
+  tagline: InfoSec @ USW
+  email: leesomin7747@naver.com
+  avatar: /img/profile.jpg 
+
+# ===== GitHub 연동 =====
+github:
+  username: leesomin7747
+  token: "${GITHUB_TOKEN:}"
+
+server:
+  port: 8080

@@ -16,6 +16,21 @@
     <!-- 글 목록 (공통 프래그먼트 사용) -->
     <div th:replace="~{fragments/postList :: list(${posts})}"></div>
 
+    <!-- 페이지 넘김 (홈에서만, 2페이지 이상일 때) -->
+    <nav class="pagination" th:if="${totalPages != null and totalPages > 1}">
+        <!-- 이전 -->
+        <a class="page-link" th:classappend="${currentPage == 1} ? 'disabled'"
+           th:href="@{/(page=${currentPage - 1})}">‹</a>
+        <!-- 1 2 3 ... -->
+        <a class="page-link" th:each="i : ${#numbers.sequence(1, totalPages)}"
+           th:href="@{/(page=${i})}"
+           th:text="${i}"
+           th:classappend="${i == currentPage} ? 'active'">1</a>
+        <!-- 다음 -->
+        <a class="page-link" th:classappend="${currentPage == totalPages} ? 'disabled'"
+           th:href="@{/(page=${currentPage + 1})}">›</a>
+    </nav>
+
 </div>
 </body>
 </html>
